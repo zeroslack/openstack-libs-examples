@@ -5,20 +5,23 @@ try:
     from keystoneauth1 import loading
     from keystoneauth1 import session as auth_session
     from keystoneauth1 import discover as kauth_discover
+    HAS_KEYSTONEAUTH1 = True
 except ImportError as ex:
     from sys import stderr
     print(ex.message, file=stderr)
+    HAS_KEYSTONEAUTH1 = False
 from keystoneclient.auth.identity import v2, v3
-from oslo_config import cfg
-import keystoneclient
-from keystoneclient import session as legacy_session
 from keystoneclient import discover as ks_discover
+from keystoneclient import session as legacy_session
+from oslo_config import cfg
+from re import sub
 from urllib3.util import parse_url
 from urllib3.util.url import Url
-from re import sub
-import os
-import sys
+import keystoneclient
 import logging
+import os
+import pbr.version
+import sys
 
 
 class AuthSwitcher(object):
@@ -58,6 +61,11 @@ class AuthSwitcher(object):
                 self.conf.set_default(name=n, default=v)
 
         self.conf(args[0])
+
+        # bail using keystoneauth1 if not available.
+        # FIXME: this is hacky...
+        if self.conf.use_keystoneauth1 and not HAS_KEYSTONEAUTH1:
+            raise Exception('Requested module keystoneauth1 is not available.')
         # adjust the logging
         if self.conf.debug:
             ch = logging.StreamHandler(stream=sys.stderr)
@@ -86,15 +94,26 @@ class AuthSwitcher(object):
         CONF_FILE = self.CONF_FILE
         _conf = cfg.ConfigOpts()
 
+        # Hack alert...
+        # TODO: maybe this should be a map in future..
+        min_semver = (3, 15, 0)
+        verinfo = pbr.version.VersionInfo('oslo.config')
+        oslo_cfg_semver = verinfo.semantic_version().version_tuple()[:3]
+
+        nsd_opt_args = {
+            'help': ('Use null-sessions in version discovey.'
+                    'This shouldn\'t be a gloabl opt.'),
+            'default': False,
+        }
+        if oslo_cfg_semver >= min_semver:
+             nsd_opt_args['advanced'] = True
+
         cli_global_opts = [
             cfg.BoolOpt('debug',
                         help='Enable debug logging',
                         default=False),
             cfg.BoolOpt('null-session-discovery',
-                        help=('Use null-sessions in version discovey.'
-                              'This shouldn\'t be a gloabl opt.'),
-                        advanced=True,
-                        default=False),
+                        **nsd_opt_args),
             cfg.BoolOpt('use-keystoneauth1',
                         help='Use keystoneuth1',
                         default=True),
@@ -321,6 +340,7 @@ class AuthSwitcher(object):
                         raise(Exception('Could not discover: %s' % e.message))
                 else:
                     sess = keystoneclient.session.Session(auth=auth)
+                # keystoneclient.exceptions.DiscoveryFailure: Not enough information to determine URL. Provide either auth_url or endpoint
                 keystone = keystoneclient.client.Client(version, session=sess)
             else:
                 raise Exception('Non-session approach not implemented.')
