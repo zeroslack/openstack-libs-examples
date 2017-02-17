@@ -56,9 +56,13 @@ class AuthSwitcher(object):
         vars = filter(lambda x: x[0].startswith('OS_'), os.environ.iteritems())
         conf_keys = self.conf.keys()
         for k, v in vars:
-            n = k[3:].lower()
-            if n in conf_keys:
-                self.conf.set_default(name=n, default=v)
+        # Try the full var first
+            n = k.lower()
+            cands = (n, n[3:])
+            for var in cands:
+                if var in conf_keys:
+                    self.conf.set_default(name=var, default=v)
+                    break
 
         self.conf(args[0])
 
