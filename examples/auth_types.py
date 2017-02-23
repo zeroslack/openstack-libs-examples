@@ -30,7 +30,7 @@ class AuthSwitcher(object):
 
     def __init__(self, os_service_endpoint=None):
         self._conf = self._configure_options()
-        self._ks_client = None
+        self._sess = None
         self.os_service_endpoint = os_service_endpoint
         # initial logger
         self._logger = self._get_logger()
@@ -219,6 +219,10 @@ class AuthSwitcher(object):
         return _conf
 
     @property
+    def session(self):
+        return self._sess
+
+    @property
     def conf(self):
         return self._conf
 
@@ -349,6 +353,7 @@ class AuthSwitcher(object):
             else:
                 raise Exception('Non-session approach not implemented.')
 
+        self._sess = sess
         self.logger.info('Auth object: %s' % auth)
         self.logger.info('Session object: %s' % sess)
         return keystone
@@ -357,6 +362,7 @@ class AuthSwitcher(object):
 if __name__ == '__main__':
     IGNORED_WARNINGS = ('InsecurePlatformWarning', 'SNIMissingWarning')
     import requests
+    from pprint import pprint
 
     for w in IGNORED_WARNINGS:
         cls = getattr(requests.packages.urllib3.exceptions, w, None)
@@ -370,16 +376,24 @@ if __name__ == '__main__':
         sys.exit(e)
     logger = auth_switcher.logger
     auth_switcher.conf.log_opt_values(logger=logger, lvl=logging.INFO)
+    ks_client = auth_switcher.Client()
+    version = auth_switcher.conf.os_identity_api_version
 
-    def list_projects(auth):
-        version = auth.conf.os_identity_api_version
-        keystone = auth.Client()
+    def list_projects():
         if version == '2.0':
-            return keystone.tenants.list()
+            return ks_client.tenants.list()
         elif version == '3':
-            return keystone.projects.list()
+            return ks_client.projects.list()
 
-    sys.exit(logger.info('Projects class: %s' %
-                         type(list_projects(auth_switcher)[0])))
+    logger.info('Projects class: %s' % type(list_projects()[0]))
+    logger.info('Token data:')
+    # datastructure has changed
+    if version == '2.0':
+        pprint(ks_client.session.auth.auth_ref._token)
+    elif version == '3':
+        #import pdb ; pdb.set_trace()
+        pprint(ks_client.session.auth.auth_ref._data)
+    else:
+        raise Exception('Unsupported version %s' % version)
 
 # vim:ts=4:sw=4:shiftround:et:smartindent
