@@ -12,6 +12,7 @@
 # under the License.
 
 # Fix this...
+from __future__ import print_function
 import os.path
 d = os.path.dirname(__file__)
 import sys
@@ -74,37 +75,61 @@ def create_connection_from_args():
     return connection.from_config(options=args)
 
 
-def create_connection(auth_url, region, project_name, username, password):
+def create_connection(**kwargs):
     prof = profile.Profile()
+    region = kwargs.get('region', None)
     prof.set_region(profile.Profile.ALL, region)
 
     return connection.Connection(
         profile=prof,
         user_agent='examples',
-        auth_url=auth_url,
-        project_name=project_name,
-        username=username,
-        password=password
+        auth_url=kwargs.pop('auth_url'),
+        project_name=kwargs.pop('project_name'),
+        username=kwargs.pop('username'),
+        password=kwargs.pop('password')
     )
+
+class SdkAuthSwitcher(AuthSwitcher):
+    @property
+    def auth_url(self):
+        # TODO - use discovered urls
+        conf = self.conf
+        if conf.auth_url:
+            return conf.auth_url
+        else:
+            return conf.os_service_endpoint ('/v%s' % conf.os_identity_api_version)
 
 if __name__ == '__main__':
     utils.enable_logging(True, stream=sys.stdout)
 
     try:
-        auth_switcher = AuthSwitcher()
+        auth_switcher = SdkAuthSwitcher()
         auth_switcher.configure(sys.argv[1:])
     except (cfg.Error) as e:
         sys.exit(e)
     logger = auth_switcher.logger 
-    auth_switcher.conf.log_opt_values(logger=logger, lvl=logging.INFO)
+    conf = auth_switcher.conf
+    conf.log_opt_values(logger=logger, lvl=logging.INFO)
 
-    #: Defines the OpenStack Client Config (OCC) cloud key in your OCC config
-    #: file, typically in $HOME/.config/openstack/clouds.yaml. That configuration
-    #: will determine where the examples will be run and what resource defaults
-    #: will be used to run the examples.
     TEST_CLOUD = 'example'
-    occ = os_client_config.OpenStackConfig()
+    occ_kwargs = {
+    #    'config_files': ['clouds.yaml']
+    }
+    occ = os_client_config.OpenStackConfig(**occ_kwargs)
     cloud = occ.get_one_cloud(TEST_CLOUD)
+    REGION = None
+    conn_kwargs = {
+        # Note that sending versioned urls seem to require additional params
+        # By default it appears v2.0 is used?
+        'auth_url': auth_switcher.os_service_endpoint,
+        'region': REGION,
+        'project_name': conf.project_name,
+        'username': conf.username,
+        'password': conf.password
+    }
 
+    conn = create_connection(**conn_kwargs)
+    projects = list(conn.identity.projects())
+    print(projects)
 
-# vim:ts=4:sw=4:shiftround:et:smartindent
+# vim:ts=4:sw=4:shiftround:et:
