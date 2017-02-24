@@ -90,14 +90,56 @@ def create_connection(**kwargs):
     )
 
 class SdkAuthSwitcher(AuthSwitcher):
+#    def __init__(self, *args, **kwargs):
+#        super(self.__class__, self).__init__(*args, **kwargs)
+
     @property
     def auth_url(self):
         # TODO - use discovered urls
         conf = self.conf
         if conf.auth_url:
             return conf.auth_url
-        else:
+        elif conf.openstacksdk.versioned_auth_url:
             return conf.os_service_endpoint ('/v%s' % conf.os_identity_api_version)
+        else:
+            return conf.os_service_endpoint
+
+    def _configure_options(self):
+        _conf = super(self.__class__, self)._configure_options()
+
+        opt_map = {
+            'openstacksdk': {
+                'group': cfg.OptGroup(title='OpenstackSDK Options',
+                                      name='openstacksdk'),
+                'options': [
+                    {
+                        'opt': cfg.BoolOpt('versioned-auth-url',
+                                           help='Use versioned auth-urls',
+                                           default=False),
+                        'cli': True
+                    },
+               ],
+
+            },
+        }
+
+        for groupname, attrs in opt_map.iteritems():
+            if 'group' in attrs:
+                group = attrs['group']
+                _conf.register_group(group)
+            else:
+                # Fallback to group name
+                group = groupname
+            for optdesc in attrs.get('options', []):
+                kwargs = {'group': group}
+                kwargs.update(optdesc)
+                _conf.register_opt(**kwargs)
+
+        # TODO(kamidzi)
+        # Configuration files have already been read at this point.
+        # Can we re-read them non-destructively?
+        return _conf
+
 
 if __name__ == '__main__':
     utils.enable_logging(True, stream=sys.stdout)
@@ -121,7 +163,7 @@ if __name__ == '__main__':
     conn_kwargs = {
         # Note that sending versioned urls seem to require additional params
         # By default it appears v2.0 is used?
-        'auth_url': auth_switcher.os_service_endpoint,
+        'auth_url': auth_switcher.auth_url,
         'region': REGION,
         'project_name': conf.project_name,
         'username': conf.username,

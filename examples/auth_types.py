@@ -53,6 +53,10 @@ class AuthSwitcher(object):
         return log
 
     def configure(self, *args, **kwargs):
+        CONF_FILE = self.CONF_FILE
+        if os.path.exists(CONF_FILE) and os.access(CONF_FILE, os.R_OK):
+            self.conf(default_config_files=[CONF_FILE])
+
         vars = filter(lambda x: x[0].startswith('OS_'), os.environ.iteritems())
         conf_keys = self.conf.keys()
         for k, v in vars:
@@ -212,9 +216,6 @@ class AuthSwitcher(object):
         # (otherwise auto-scoping by OptionGroup seems to malfunction)
         for opt in cli_global_opts:
             _conf.register_opt(opt, cli=True)
-
-        if os.path.exists(CONF_FILE) and os.access(CONF_FILE, os.R_OK):
-            _conf(default_config_files=[CONF_FILE])
 
         return _conf
 
