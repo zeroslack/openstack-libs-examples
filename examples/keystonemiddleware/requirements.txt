@@ -1,4 +1,6 @@
 python-glanceclient==2.6.0
+keystonemiddleware==4.14.0
+oslo.config==3.23.0
 ## The following requirements were added by pip --freeze:
 Babel==2.3.4
 PyYAML==3.12
@@ -18,7 +20,6 @@ netaddr==0.7.17
 netifaces==0.10.4
 openstacksdk==0.9.13
 os-client-config==1.26.0
-oslo.config==2.4.0
 oslo.i18n==2.6.0
 oslo.serialization==1.9.0
 oslo.utils==3.22.0
@@ -37,3 +38,10 @@ urllib3==1.11
 warlock==1.2.0
 wrapt==1.8.0
 wsgiref==0.1.2
+## The following requirements were added by pip --freeze:
+WebOb==1.7.1
+oslo.context==2.13.0
+oslo.log==3.20.1
+pycadf==2.5.0
+pyinotify==0.9.6
+python-dateutil==2.6.0
