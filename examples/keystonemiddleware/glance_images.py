@@ -9,11 +9,11 @@ from oslo_config import cfg
 import webob.dec
 from wsgiref import simple_server
 
-cfg.CONF(project='testservice')
 
+# TODO: --help doesn't seem to work either way...
+cfg.CONF(project='testservice')
 session.Session.register_conf_options(cfg.CONF, 'communication')
 SESSION = session.Session.load_from_conf_options(cfg.CONF, 'communication')
-
 
 @webob.dec.wsgify
 def app(req):
@@ -26,4 +26,12 @@ def app(req):
 
 app = auth_token.AuthProtocol(app, {})
 server = simple_server.make_server('', 8000, app)
-server.serve_forever()
+#server.serve_forever()
+
+if __name__ == '__main__':
+    import logging
+    import sys
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logger = logging.getLogger(cfg.CONF.project)
+    cfg.CONF.log_opt_values(cfg.LOG, cfg.logging.INFO)
+    server.serve_forever()
