@@ -4,6 +4,7 @@
 from glanceclient import client
 import json
 from keystoneclient import session
+from keystoneclient import client as ks_client
 from keystonemiddleware import auth_token
 from oslo_config import cfg
 import webob.dec
@@ -32,12 +33,24 @@ SESSION = session.Session.load_from_conf_options(cfg.CONF, 'communication')
 
 @webob.dec.wsgify
 def app(req):
-    print(Exception(req.environ['keystone.token_auth']._auth.__dict__))
+# N.B. below does not work
+# 
+# DiscoveryFailure: Not enough information to determine URL. Provide either a Session, or auth_url or endpoint
+#    kclient = ks_client.Client('3',
+#                               session=SESSION,
+#                               auth=req.environ['keystone.token_auth'])
+
+# TODO(kamidzi): Need to handle InvalidToken exception
     glance = client.Client('2',
                            session=SESSION,
                            auth=req.environ['keystone.token_auth'])
 
-    return webob.Response(json.dumps([i.name for i in glance.images.list()]))
+    resp = {
+        'glance_images': [i.name for i in glance.images.list()],
+        'keystone.token_auth.user': req.environ['keystone.token_auth'].user._data,
+    }
+
+    return webob.Response(json.dumps(resp))
 
 if __name__ == '__main__':
     import logging
