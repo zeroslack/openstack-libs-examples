@@ -6,6 +6,7 @@ from __future__ import print_function
 from oslo_config import cfg
 import oslo_messaging as messaging
 import logging
+from test_config import *
 import sys
 
 if __name__ == '__main__':
@@ -19,14 +20,6 @@ if __name__ == '__main__':
     conf(sys.argv[1:])
     conf.log_opt_values(log, logging.INFO)
 
-    # TODO(zeroslack): get from mulit-value configopt
-    host_args = {
-        'hostname': '10.0.100.11',
-        'port': 5672,
-        'username': 'guest',
-        'password': 'oAhY0TfFvFktUPbBs29v'
-    }
-
     transport_host = messaging.TransportHost(**host_args)
     transport_url = messaging.TransportURL(conf,
                                            hosts=[transport_host],
@@ -37,6 +30,7 @@ if __name__ == '__main__':
     driver = 'messaging'
     notifier = messaging.Notifier(transport,
                                   driver=driver,
+                                  topics=['monitor', 'openstack'],
                                   publisher_id='testing')
 
     notifier.info({'some': 'context'}, 'just.testing', {'heavy': 'payload'})
